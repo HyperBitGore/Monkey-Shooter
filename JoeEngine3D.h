@@ -327,7 +327,7 @@ namespace Joe {
 			glfwPollEvents();
 		}
 		//overload for use if you want to use Entities instead of models
-		static void drawWindow(GLFWwindow* wind, std::vector<Entity*>& models) {
+		static void drawWindow(GLFWwindow* wind, std::vector<Entity*>& models, bool* drawline, Model* shoot) {
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 			std::vector<glm::vec3> vertices;
 			std::vector<glm::vec2> uvs;
@@ -351,7 +351,13 @@ namespace Joe {
 				//std::copy(i.uvs.begin(), i.uvs.end(), std::back_inserter(uvs));
 				//std::copy(i.normals.begin(), i.normals.end(), std::back_inserter(normals));
 			}
-
+			if (*drawline) {
+				glBindTexture(GL_TEXTURE_2D, shoot->texture);
+				glEnableVertexAttribArray(0);
+				glBindBuffer(GL_ARRAY_BUFFER, shoot->vertexbuffer);
+				glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+				glDrawArrays(GL_TRIANGLES, 0, shoot->vertices.size() * 3);
+			}
 
 			glfwSwapBuffers(wind);
 			glfwPollEvents();
@@ -436,22 +442,24 @@ namespace Joe {
 			}
 			return false;
 		}
-		static bool castRay(Ray* r, std::vector<Entity*> entities, glm::vec3 maxwalk) {
+		static std::pair<bool, Entity*> castRay(Ray* r, std::vector<Entity*> entities, glm::vec3 maxwalk) {
 			bool colliding = false;
 			glm::vec3 start = r->point;
+			Entity* ret;
 			while (!colliding) {
 				for (auto& i : entities) {
 					if (rayCollision(i->bounding, *r)) {
 						colliding = true;
+						ret = i;
 					}
 				}
 				r->point += r->inc;
 				r->distance = glm::abs(r->point - start);
 				if (r->distance.x > maxwalk.x || r->distance.y > maxwalk.y || r->distance.z > maxwalk.z) {
-					return false;
+					return {false, nullptr};
 				}
 			}
-			return true;
+			return {true, ret};
 		}
 	};
 
@@ -471,7 +479,7 @@ namespace Joe {
 		glm::mat4 Project;
 		glm::mat4 View;
 	public:
-		void computeMatricesFromInputs(GLFWwindow* wind, float delta, AABB *bounding) {
+		void computeMatricesFromInputs(GLFWwindow* wind, float delta, AABB *bounding, std::vector<Entity*>& enemies, Model* shoot, bool *drawline) {
 			double xpos, ypos;
 			glfwGetCursorPos(wind, &xpos, &ypos);
 			horizontalAngle += mouseSpeed * delta * float(1024 / 2 - xpos);
@@ -514,6 +522,30 @@ namespace Joe {
 				position -= right * delta * speed;
 				bounding->max -= right * delta * speed;
 				bounding->min -= right * delta * speed;
+			}
+			if (glfwGetMouseButton(wind, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
+				Ray ray1 = { position, direction * delta, glm::vec3(0) };
+				std::pair<bool, Entity*> output = Engine::castRay(&ray1, enemies, glm::vec3(5.0));
+				if (output.first) {
+					*drawline = true;
+					glm::vec3 temp = position;
+					temp.y -= 1.0;
+					temp.z -= direction.z * speed;;
+					temp.x -= 1.0;
+					shoot->vertices[0] = position;
+					shoot->vertices[1] = output.second->bounding.max;
+					temp.x += 2.0;
+					shoot->vertices[2] = temp;
+					//left triangle
+					temp.x -= 3.0;
+					shoot->vertices[3] = temp;
+					shoot->vertices[4] = output.second->bounding.max;
+					temp.x += 3.0;
+					shoot->vertices[5] = temp;
+					glBindBuffer(GL_ARRAY_BUFFER, shoot->vertexbuffer);
+					glBufferData(GL_ARRAY_BUFFER, shoot->vertices.size() * sizeof(glm::vec3), &shoot->vertices[0], GL_STATIC_DRAW);
+					std::cout << output.second->bounding.max.z << "\n";
+				}
 			}
 			//Projection matrix
 			Project = glm::perspective(glm::radians(initialFoV), 4.0f / 3.0f, 0.1f, 100.0f);
