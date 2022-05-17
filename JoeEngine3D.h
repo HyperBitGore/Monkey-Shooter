@@ -27,6 +27,7 @@ namespace Joe {
 	};
 	struct Entity : Model {
 		AABB bounding;
+		int health;
 	};
 	struct Ray {
 		glm::vec3 point;
@@ -327,7 +328,7 @@ namespace Joe {
 			glfwPollEvents();
 		}
 		//overload for use if you want to use Entities instead of models
-		static void drawWindow(GLFWwindow* wind, std::vector<Entity*>& models, bool* drawline, Model* shoot) {
+		static void drawWindow(GLFWwindow* wind, std::vector<Entity*>& models, bool* drawline, Model* shoot, GLuint colorID, GLuint matrixuniform) {
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 			std::vector<glm::vec3> vertices;
 			std::vector<glm::vec2> uvs;
@@ -351,12 +352,21 @@ namespace Joe {
 				//std::copy(i.uvs.begin(), i.uvs.end(), std::back_inserter(uvs));
 				//std::copy(i.normals.begin(), i.normals.end(), std::back_inserter(normals));
 			}
+			glm::mat4 Ortho = glm::ortho(-(1024.0f / 2.0f), 1024.0f/2.0f, 768.0f/2.0f, -(768.0f/2.0f), -1000.0f, 1000.0f);
+			glm::mat4 _guiMVP;
+			glm::mat4 _guiview = glm::lookAt(glm::vec3(0, 0, 1), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
+			glm::mat4 _guimodel = glm::mat4();
+			_guiMVP = Ortho * _guiview * _guimodel;
 			if (*drawline) {
+				glDisable(GL_DEPTH_TEST);
+				//glUniformMatrix4fv(matrixuniform, 1, GL_FALSE, &_guiMVP[0][0]);
+				glUseProgram(colorID);
 				glBindTexture(GL_TEXTURE_2D, shoot->texture);
 				glEnableVertexAttribArray(0);
 				glBindBuffer(GL_ARRAY_BUFFER, shoot->vertexbuffer);
 				glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
-				glDrawArrays(GL_TRIANGLES, 0, shoot->vertices.size() * 3);
+				glDrawArrays(GL_TRIANGLES, 0, 3);
+				glEnable(GL_DEPTH_TEST);
 			}
 
 			glfwSwapBuffers(wind);
@@ -528,23 +538,9 @@ namespace Joe {
 				std::pair<bool, Entity*> output = Engine::castRay(&ray1, enemies, glm::vec3(5.0));
 				if (output.first) {
 					*drawline = true;
-					glm::vec3 temp = position;
-					temp.y -= 1.0;
-					temp.z -= direction.z * speed;;
-					temp.x -= 1.0;
-					shoot->vertices[0] = position;
-					shoot->vertices[1] = output.second->bounding.max;
-					temp.x += 2.0;
-					shoot->vertices[2] = temp;
-					//left triangle
-					temp.x -= 3.0;
-					shoot->vertices[3] = temp;
-					shoot->vertices[4] = output.second->bounding.max;
-					temp.x += 3.0;
-					shoot->vertices[5] = temp;
-					glBindBuffer(GL_ARRAY_BUFFER, shoot->vertexbuffer);
-					glBufferData(GL_ARRAY_BUFFER, shoot->vertices.size() * sizeof(glm::vec3), &shoot->vertices[0], GL_STATIC_DRAW);
-					std::cout << output.second->bounding.max.z << "\n";
+					//damage enemy here
+					output.second->health -= 10;
+					std::cout << output.second->health << "\n";
 				}
 			}
 			//Projection matrix

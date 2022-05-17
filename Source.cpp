@@ -1,7 +1,7 @@
 #include "JoeEngine3D.h"
 
 
-//add shooting(draw long cube to monkey, get starting point centered)
+//add shooting(draw 2d shooting effect, health for enemies)
 //add score system
 //add death and reset system
 //monke spawning
@@ -19,6 +19,7 @@ int main() {
 
 	std::vector<Joe::Entity*> entities;
 	Joe::Entity e1 = Joe::Engine::createEntity(&models[0]);
+	e1.health = 100;
 	entities.push_back(&e1);
 	Joe::Entity e2 = Joe::Engine::createEntity(&models[1]);
 	entities.push_back(&e2);
@@ -29,15 +30,9 @@ int main() {
 	monkes.push_back(&e1);
 
 	Joe::Model shoot;
-	//make a cone or something here
-	//right side triangle
-	shoot.vertices.push_back(glm::vec3(0, 0, 5));
-	shoot.vertices.push_back(glm::vec3(0, 0, 7));
-	shoot.vertices.push_back(glm::vec3(2, 0, 5));
-	//left side triangle
-	shoot.vertices.push_back(glm::vec3(-2, 0, 5));
-	shoot.vertices.push_back(glm::vec3(-2, 0, 7));
-	shoot.vertices.push_back(glm::vec3(0, 0, 5));
+	shoot.vertices.push_back(glm::vec3(50, 50, 50));
+	shoot.vertices.push_back(glm::vec3(100, 50, 50));
+	shoot.vertices.push_back(glm::vec3(75, 100, 50));
 	shoot.texture = texture2;
 	glGenBuffers(1, &shoot.vertexbuffer);
 	glBindBuffer(GL_ARRAY_BUFFER, shoot.vertexbuffer);
@@ -76,7 +71,7 @@ int main() {
 		mouserest += delta;
 		if (linedraw) {
 			linecool += delta;
-			if (linecool > 3.0) {
+			if (linecool > 30.0) {
 				linedraw = false;
 				linecool = 0;
 			}
@@ -93,7 +88,7 @@ int main() {
 		glUniform3f(lightmat, lightpoint.x, lightpoint.y, lightpoint.z);
 		glUniformMatrix4fv(viewmatuniform, 1, GL_FALSE, &viewm[0][0]);
 		glUniformMatrix4fv(modlematuniform, 1, GL_FALSE, &modm[0][0]);
-		Joe::Engine::drawWindow(wind, entities, &linedraw, &shoot);
+		Joe::Engine::drawWindow(wind, entities, &linedraw, &shoot, colorID, matrixuniform);
 		downray.point = control.getPosition();
 		downray.point.y -= 0.5;
 		if (mouserest > 0.1) {
