@@ -4,8 +4,22 @@
 Joe::Entity spawnMonkey(glm::vec3 pos, Joe::Model *model, std::vector<Joe::Entity*>& monkes, std::vector<Joe::Entity*>& entities) {
 	Joe::Entity* e = new Joe::Entity;
 	*e = Joe::Engine::createEntity(model);
-	e->bounding;
-	e->vertices;
+	glm::vec3 middle = e->bounding.min + (e->bounding.max - glm::abs(e->bounding.min));
+	glm::vec3 dif(0,0,0);
+	if (middle.x < pos.x) {
+		dif.x = pos.x - middle.x;
+	}
+	else if (middle.x > pos.x) {
+		dif.x =  middle.x - pos.x;
+	}
+	if (middle.z < pos.z) {
+		dif.z = pos.z - middle.z;
+	}
+	else if (middle.z > pos.z) {
+		dif.z = middle.z - pos.z;
+	}
+	Joe::Engine::moveEntityVertices(e, dif);
+	Joe::Engine::moveAABB(&e->bounding, dif);
 	e->health = 100;
 	monkes.push_back(e);
 	entities.push_back(e);
@@ -27,6 +41,7 @@ void deleteMonkey(Joe::Entity* e, std::vector<Joe::Entity*>& entities) {
 	delete e;
 }
 
+//change renderering to be able to render multiple monkeys
 //monke spawning(spawn randomly)
 //shooting sound effect
 int main() {
@@ -112,14 +127,16 @@ int main() {
 	bool linedraw = false;
 	double linecool = 0;
 	double shootcool = 0;
-
-
+	//spawning
+	double monkeyspawn = 0;
+	double monkeycool = 5.0;
 
 	glfwSetInputMode(wind, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 	while (glfwGetKey(wind, GLFW_KEY_ESCAPE) != GLFW_PRESS && glfwWindowShouldClose(wind) == 0) {
 		double currentTime = glfwGetTime();
 		float delta = float(currentTime - lastTime);
 		mouserest += delta;
+		monkeyspawn += delta;
 		if (linedraw) {
 			linecool += delta;
 			if (linecool > 0.5) {
@@ -129,6 +146,10 @@ int main() {
 		}
 		else {
 			shootcool += delta;
+		}
+		if (monkeyspawn > monkeycool) {
+			spawnMonkey(glm::vec3(), &models[0], monkes, entities);
+			monkeyspawn = 0;
 		}
 		falling = true;
 		control.computeMatricesFromInputs(wind, delta, &player, monkes, &shoot, &linedraw, &shootcool);
@@ -169,10 +190,10 @@ int main() {
 				move.x = -angle * delta;
 			}
 			if (monkemiddle.z < middle.z) {
-				move.z = angle * delta * 3.0f;
+				move.z = angle * delta * 1.5f;
 			}
 			else if (monkemiddle.z > middle.z) {
-				move.z = -angle * delta * 3.0f;
+				move.z = -angle * delta * 1.5f;
 			}
 			Joe::Engine::moveEntityVertices(i, move);
 			Joe::Engine::moveAABB(&i->bounding, move);
