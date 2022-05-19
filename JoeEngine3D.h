@@ -328,7 +328,7 @@ namespace Joe {
 			glfwPollEvents();
 		}
 		//overload for use if you want to use Entities instead of models
-		static void drawWindow(GLFWwindow* wind, std::vector<Entity*>& models, bool* drawline, Model* shoot, GLuint colorID, GLuint matrixuniform) {
+		static void drawWindow(GLFWwindow* wind, std::vector<Entity*>& models, bool* drawline, Model* shoot, GLuint colorID) {
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 			std::vector<glm::vec3> vertices;
 			std::vector<glm::vec2> uvs;
@@ -352,21 +352,21 @@ namespace Joe {
 				//std::copy(i.uvs.begin(), i.uvs.end(), std::back_inserter(uvs));
 				//std::copy(i.normals.begin(), i.normals.end(), std::back_inserter(normals));
 			}
-			glm::mat4 Ortho = glm::ortho(-(1024.0f / 2.0f), 1024.0f/2.0f, 768.0f/2.0f, -(768.0f/2.0f), -1000.0f, 1000.0f);
-			glm::mat4 _guiMVP;
-			glm::mat4 _guiview = glm::lookAt(glm::vec3(0, 0, 1), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
-			glm::mat4 _guimodel = glm::mat4();
-			_guiMVP = Ortho * _guiview * _guimodel;
 			if (*drawline) {
 				glDisable(GL_DEPTH_TEST);
-				//glUniformMatrix4fv(matrixuniform, 1, GL_FALSE, &_guiMVP[0][0]);
+				glDisable(GL_CULL_FACE);
 				glUseProgram(colorID);
 				glBindTexture(GL_TEXTURE_2D, shoot->texture);
 				glEnableVertexAttribArray(0);
 				glBindBuffer(GL_ARRAY_BUFFER, shoot->vertexbuffer);
 				glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
-				glDrawArrays(GL_TRIANGLES, 0, 3);
+				//uv attrib
+				glEnableVertexAttribArray(1);
+				glBindBuffer(GL_ARRAY_BUFFER, shoot->uvbuffer);
+				glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, (void*)0);
+				glDrawArrays(GL_TRIANGLES, 0, 6);
 				glEnable(GL_DEPTH_TEST);
+				glEnable(GL_CULL_FACE);
 			}
 
 			glfwSwapBuffers(wind);
@@ -489,7 +489,7 @@ namespace Joe {
 		glm::mat4 Project;
 		glm::mat4 View;
 	public:
-		void computeMatricesFromInputs(GLFWwindow* wind, float delta, AABB *bounding, std::vector<Entity*>& enemies, Model* shoot, bool *drawline) {
+		void computeMatricesFromInputs(GLFWwindow* wind, float delta, AABB *bounding, std::vector<Entity*>& enemies, Model* shoot, bool *drawline, double* shootcool) {
 			double xpos, ypos;
 			glfwGetCursorPos(wind, &xpos, &ypos);
 			horizontalAngle += mouseSpeed * delta * float(1024 / 2 - xpos);
@@ -533,14 +533,17 @@ namespace Joe {
 				bounding->max -= right * delta * speed;
 				bounding->min -= right * delta * speed;
 			}
-			if (glfwGetMouseButton(wind, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
-				Ray ray1 = { position, direction * delta, glm::vec3(0) };
-				std::pair<bool, Entity*> output = Engine::castRay(&ray1, enemies, glm::vec3(5.0));
-				if (output.first) {
-					*drawline = true;
-					//damage enemy here
-					output.second->health -= 10;
-					std::cout << output.second->health << "\n";
+			if (*shootcool > 0.1) {
+				if (glfwGetMouseButton(wind, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
+					Ray ray1 = { position, direction * delta, glm::vec3(0) };
+					std::pair<bool, Entity*> output = Engine::castRay(&ray1, enemies, glm::vec3(5.0));
+					if (output.first) {
+						*drawline = true;
+						//damage enemy here
+						output.second->health -= 10;
+						std::cout << output.second->health << "\n";
+					}
+					*shootcool = 0;
 				}
 			}
 			//Projection matrix
@@ -563,6 +566,16 @@ namespace Joe {
 		}
 		void editPosition(glm::vec3 change) {
 			position += change;
+		}
+		void setPosition(glm::vec3 pos) {
+			position = pos;
+		}
+		void reset() {
+			position = glm::vec3(0, 0, 5);
+			// horizontal angle : toward -Z
+			horizontalAngle = 3.14f;
+			// vertical angle : 0, look at the horizon
+			verticalAngle = 0.0f;
 		}
 	};
 }

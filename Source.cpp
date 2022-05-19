@@ -1,17 +1,15 @@
 #include "JoeEngine3D.h"
 
 
-//add shooting(draw 2d shooting effect, health for enemies)
-//add score system
-//add death and reset system
-//monke spawning
+//monke spawning(spawn randomly, path towards you, can be killed)
+//shooting sound effect
 int main() {
 	GLFWwindow* wind = Joe::Engine::initGL(1024, 768);
 	GLuint lightID = Joe::Files::LoadShaders("vertexshader.glsl", "fragmentshader.glsl");
 	GLuint colorID = Joe::Files::LoadShaders("vertshader.glsl", "fragshader.glsl");
 
 	GLuint texture1 = Joe::Files::loadBMP_Texture("xoK5F.bmp");
-	GLuint texture2 = Joe::Files::loadBMP_Texture("redtexture.bmp");
+	GLuint texture2 = Joe::Files::loadBMP_Texture("shoot2.bmp");
 	std::vector<Joe::Model> models;
 	Joe::Engine::addModel("monkey.obj", models, texture1);
 	Joe::Engine::addModel("floor.obj", models, texture1);
@@ -30,18 +28,38 @@ int main() {
 	monkes.push_back(&e1);
 
 	Joe::Model shoot;
+	//left triangle
+	shoot.vertices.push_back(glm::vec3(0, 0, 50));
+	shoot.vertices.push_back(glm::vec3(0, 50, 50));
+	shoot.vertices.push_back(glm::vec3(50, 0, 50));
+	//right triangle
+	shoot.vertices.push_back(glm::vec3(0, 50, 50));
 	shoot.vertices.push_back(glm::vec3(50, 50, 50));
-	shoot.vertices.push_back(glm::vec3(100, 50, 50));
-	shoot.vertices.push_back(glm::vec3(75, 100, 50));
+	shoot.vertices.push_back(glm::vec3(50, 0, 50));
+	//uvs
+	shoot.uvs.push_back(glm::vec2(0, 0));
+	shoot.uvs.push_back(glm::vec2(0, 1.0));
+	shoot.uvs.push_back(glm::vec2(1.0, 0));
+	shoot.uvs.push_back(glm::vec2(0, 1));
+	shoot.uvs.push_back(glm::vec2(1, 1));
+	shoot.uvs.push_back(glm::vec2(1, 0));
+
 	shoot.texture = texture2;
 	glGenBuffers(1, &shoot.vertexbuffer);
 	glBindBuffer(GL_ARRAY_BUFFER, shoot.vertexbuffer);
 	glBufferData(GL_ARRAY_BUFFER, shoot.vertices.size() * sizeof(glm::vec3), &shoot.vertices[0], GL_STATIC_DRAW);
 
-	Joe::AABB player = Joe::Engine::constructAABB(&models[0]);
+	glGenBuffers(1, &shoot.uvbuffer);
+	glBindBuffer(GL_ARRAY_BUFFER, shoot.uvbuffer);
+	glBufferData(GL_ARRAY_BUFFER, shoot.uvs.size() * sizeof(glm::vec3), &shoot.uvs[0], GL_STATIC_DRAW);
+
+	Joe::AABB player = {glm::vec3(0, 0, 0.05), glm::vec3(0.5, 1.0, 0.1)};
+	Joe::AABB resetp;
+	int phealth = 100;
 	//maybe start from middle of AABB
-	glm::vec3 difp = glm::vec3(0, 0, 5) - (player.min);
+	glm::vec3 difp = glm::vec3(0, 0, 5) - (glm::vec3(0.25, 0.5, 0.075));
 	Joe::Engine::moveAABB(&player, difp);
+	resetp = player;
 	//ray for downward collision of player
 	Joe::Ray downray = {glm::vec3(0, 0, 5), glm::vec3(0, 0.01, 0), glm::vec3(0,0,0)};
 	//variables needed for main loop
@@ -63,6 +81,9 @@ int main() {
 	//line drawing
 	bool linedraw = false;
 	double linecool = 0;
+	double shootcool = 0;
+
+
 
 	glfwSetInputMode(wind, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 	while (glfwGetKey(wind, GLFW_KEY_ESCAPE) != GLFW_PRESS && glfwWindowShouldClose(wind) == 0) {
@@ -71,13 +92,16 @@ int main() {
 		mouserest += delta;
 		if (linedraw) {
 			linecool += delta;
-			if (linecool > 30.0) {
+			if (linecool > 0.5) {
 				linedraw = false;
 				linecool = 0;
 			}
 		}
+		else {
+			shootcool += delta;
+		}
 		falling = true;
-		control.computeMatricesFromInputs(wind, delta, &player, monkes, &shoot, &linedraw);
+		control.computeMatricesFromInputs(wind, delta, &player, monkes, &shoot, &linedraw, &shootcool);
 		glm::mat4 proj = control.getProjectionMatrix();
 		glm::mat4 viewm = control.getViewMatrix();
 		//model matrix
@@ -88,7 +112,7 @@ int main() {
 		glUniform3f(lightmat, lightpoint.x, lightpoint.y, lightpoint.z);
 		glUniformMatrix4fv(viewmatuniform, 1, GL_FALSE, &viewm[0][0]);
 		glUniformMatrix4fv(modlematuniform, 1, GL_FALSE, &modm[0][0]);
-		Joe::Engine::drawWindow(wind, entities, &linedraw, &shoot, colorID, matrixuniform);
+		Joe::Engine::drawWindow(wind, entities, &linedraw, &shoot, colorID);
 		downray.point = control.getPosition();
 		downray.point.y -= 0.5;
 		if (mouserest > 0.1) {
@@ -96,7 +120,8 @@ int main() {
 			mouserest = 0;
 		}
 		if (Joe::Engine::AABBcollision(player, e1.bounding)) {
-			std::cout << "Collision" << "\n";
+			phealth -= 10;
+			std::cout << "colliding\n";
 		}
 		Joe::Ray temp = downray;
 		if (Joe::Engine::castRay(&downray, walls, glm::vec3(5, 5, 5)).first) {
@@ -127,6 +152,11 @@ int main() {
 				jumptime = 0;
 				jumpmax = 0;
 			}
+		}
+		if (phealth <= 0) {
+			phealth = 100;
+			control.reset();
+			player = resetp;
 		}
 		lastTime = currentTime;
 	}
