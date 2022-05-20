@@ -161,6 +161,7 @@ int main() {
 	//spawning
 	double monkeyspawn = 0;
 	double monkeycool = 5.0;
+	//generating buffers for monkeys
 	for (auto& i : monkes[0]->vertices) {
 		monkeyvertices.push_back(i);
 	}
@@ -181,6 +182,8 @@ int main() {
 	glGenBuffers(1, &monkeynormalbuffer);
 	glBindBuffer(GL_ARRAY_BUFFER, monkeynormalbuffer);
 	glBufferData(GL_ARRAY_BUFFER, monkeynormals.size() * sizeof(glm::vec3), &monkeynormals[0], GL_STATIC_DRAW);
+	//monkey collision
+	std::vector<Joe::Entity*> acold;
 
 	glfwSetInputMode(wind, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 	while (glfwGetKey(wind, GLFW_KEY_ESCAPE) != GLFW_PRESS && glfwWindowShouldClose(wind) == 0) {
@@ -199,7 +202,22 @@ int main() {
 			shootcool += delta;
 		}
 		if (monkeyspawn > monkeycool) {
-			spawnMonkey(glm::vec3(), &models[0], monkes, entities);
+			int rx = rand() % 2;
+			int rz = rand() % 2;
+			glm::vec3 sp(0);
+			if (rx < 1) {
+				sp.x = -8;
+			}
+			else {
+				sp.x = 8;
+			}
+			if (rz < 1) {
+				sp.z = -8;
+			}
+			else {
+				sp.z = 8;
+			}
+			spawnMonkey(sp, &models[0], monkes, entities);
 			monkeyspawn = 0;
 		}
 		resizeMonkeyBuffers(monkes);
@@ -224,34 +242,44 @@ int main() {
 			glfwSetCursorPos(wind, 1024 / 2, 768 / 2);
 			mouserest = 0;
 		}
-		for (auto& i : monkes) {
+		acold.clear();
+		for (int i = 0; i < monkes.size(); i++) {
 			glm::vec3 move(0, 0, 0);
-			glm::vec3 middle;
-			middle = player.min + (player.max - glm::abs(player.min));
-			glm::vec3 monkemiddle = i->bounding.min + (i->bounding.max - glm::abs(i->bounding.min));
-			float angle;
+			glm::vec3 middle = player.min + (player.max - glm::abs(player.min));
+			glm::vec3 monkemiddle = monkes[i]->bounding.min + (monkes[i]->bounding.max - glm::abs(monkes[i]->bounding.min));
 			glm::vec3 da = glm::normalize(monkemiddle);
 			glm::vec3 db = glm::normalize(middle);
-			angle = glm::acos(glm::dot(da, db));
+			float angle = glm::acos(glm::dot(da, db));
+			float rx = angle, rz = angle;
 			if (angle < 0.1) {
 				angle = 0.1;
 			}
-			//move.x = angle * delta;
 			if (monkemiddle.x < middle.x) {
-				move.x = angle * delta;
+				move.x = angle * delta * 1.5f;
+				rx = angle;
 			}
 			else if (monkemiddle.x > middle.x) {
-				move.x = -angle * delta;
+				move.x = -angle * delta * 1.5f;
+				rx = -angle;
 			}
 			if (monkemiddle.z < middle.z) {
 				move.z = angle * delta * 1.5f;
+				rz = angle;
 			}
 			else if (monkemiddle.z > middle.z) {
 				move.z = -angle * delta * 1.5f;
+				rz = -angle;
 			}
-			Joe::Engine::moveEntityVertices(i, move);
-			Joe::Engine::moveAABB(&i->bounding, move);
-			if (Joe::Engine::AABBcollision(player, i->bounding)) {
+			Joe::Engine::moveEntityVertices(monkes[i], move);
+			Joe::Engine::moveAABB(&monkes[i]->bounding, move);
+			Joe::Ray ra = { monkes[i]->bounding.min, glm::vec3(rx, 0, rz), glm::vec3(0) };
+			if (Joe::Engine::castRay(&ra, monkes, glm::vec3(2.0, 0, 2.0), monkes[i]).first) {
+				move.x = -move.x;
+				move.z = -move.z;
+				Joe::Engine::moveEntityVertices(monkes[i], move);
+				Joe::Engine::moveAABB(&monkes[i]->bounding, move);
+			}
+			if (Joe::Engine::AABBcollision(player, monkes[i]->bounding)) {
 				phealth -= 10;
 				std::cout << "colliding\n";
 			}

@@ -510,6 +510,25 @@ namespace Joe {
 			}
 			return {true, ret};
 		}
+		static std::pair<bool, Entity*> castRay(Ray* r, std::vector<Entity*> entities, glm::vec3 maxwalk, Entity* skip) {
+			bool colliding = false;
+			glm::vec3 start = r->point;
+			Entity* ret;
+			while (!colliding) {
+				for (auto& i : entities) {
+					if (rayCollision(i->bounding, *r) && i != skip) {
+						colliding = true;
+						ret = i;
+					}
+				}
+				r->point += r->inc;
+				r->distance = glm::abs(r->point - start);
+				if (r->distance.x > maxwalk.x || r->distance.y > maxwalk.y || r->distance.z > maxwalk.z) {
+					return { false, nullptr };
+				}
+			}
+			return { true, ret };
+		}
 	};
 
 
