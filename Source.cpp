@@ -40,10 +40,41 @@ void deleteMonkey(Joe::Entity* e, std::vector<Joe::Entity*>& entities) {
 	}
 	delete e;
 }
+//easier if they're global
+GLuint monkeyvertexbuffer, monkeyuvbuffer, monkeynormalbuffer;
+std::vector<glm::vec3> monkeyvertices;
+std::vector<glm::vec2> monkeyuvs;
+std::vector<glm::vec3> monkeynormals;
 
-//change renderering to be able to render multiple monkeys
+void resizeMonkeyBuffers(std::vector<Joe::Entity*>& monkes ) {
+	monkeyvertices.clear();
+	monkeyuvs.clear();
+	monkeynormals.clear();
+	for (auto& j : monkes) {
+		for (auto& i : j->vertices) {
+			monkeyvertices.push_back(i);
+		}
+		for (auto& i : j->uvs) {
+			monkeyuvs.push_back(i);
+		}
+		for (auto& i : j->normals) {
+			monkeynormals.push_back(i);
+		}
+	}
+	glBindBuffer(GL_ARRAY_BUFFER, monkeyvertexbuffer);
+	glBufferData(GL_ARRAY_BUFFER, monkeyvertices.size() * sizeof(glm::vec3), &monkeyvertices[0], GL_STATIC_DRAW);
+
+	glBindBuffer(GL_ARRAY_BUFFER, monkeyuvbuffer);
+	glBufferData(GL_ARRAY_BUFFER, monkeyuvs.size() * sizeof(glm::vec2), &monkeyuvs[0], GL_STATIC_DRAW);
+
+	glBindBuffer(GL_ARRAY_BUFFER, monkeynormalbuffer);
+	glBufferData(GL_ARRAY_BUFFER, monkeynormals.size() * sizeof(glm::vec3), &monkeynormals[0], GL_STATIC_DRAW);
+}
+
 //monke spawning(spawn randomly)
+//monkes wont clip into each other
 //shooting sound effect
+//rotate monkeys to look at player
 int main() {
 	GLFWwindow* wind = Joe::Engine::initGL(1024, 768);
 	GLuint lightID = Joe::Files::LoadShaders("vertexshader.glsl", "fragmentshader.glsl");
@@ -130,6 +161,26 @@ int main() {
 	//spawning
 	double monkeyspawn = 0;
 	double monkeycool = 5.0;
+	for (auto& i : monkes[0]->vertices) {
+		monkeyvertices.push_back(i);
+	}
+	for (auto& i : monkes[0]->uvs) {
+		monkeyuvs.push_back(i);
+	}
+	for (auto& i : monkes[0]->normals) {
+		monkeynormals.push_back(i);
+	}
+	glGenBuffers(1, &monkeyvertexbuffer);
+	glBindBuffer(GL_ARRAY_BUFFER, monkeyvertexbuffer);
+	glBufferData(GL_ARRAY_BUFFER,  monkeyvertices.size() * sizeof(glm::vec3), &monkeyvertices[0], GL_STATIC_DRAW);
+
+	glGenBuffers(1, &monkeyuvbuffer);
+	glBindBuffer(GL_ARRAY_BUFFER, monkeyuvbuffer);
+	glBufferData(GL_ARRAY_BUFFER, monkeyuvs.size() * sizeof(glm::vec2), &monkeyuvs[0], GL_STATIC_DRAW);
+
+	glGenBuffers(1, &monkeynormalbuffer);
+	glBindBuffer(GL_ARRAY_BUFFER, monkeynormalbuffer);
+	glBufferData(GL_ARRAY_BUFFER, monkeynormals.size() * sizeof(glm::vec3), &monkeynormals[0], GL_STATIC_DRAW);
 
 	glfwSetInputMode(wind, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 	while (glfwGetKey(wind, GLFW_KEY_ESCAPE) != GLFW_PRESS && glfwWindowShouldClose(wind) == 0) {
@@ -151,6 +202,7 @@ int main() {
 			spawnMonkey(glm::vec3(), &models[0], monkes, entities);
 			monkeyspawn = 0;
 		}
+		resizeMonkeyBuffers(monkes);
 		falling = true;
 		control.computeMatricesFromInputs(wind, delta, &player, monkes, &shoot, &linedraw, &shootcool);
 		glm::mat4 proj = control.getProjectionMatrix();
@@ -163,7 +215,9 @@ int main() {
 		glUniform3f(lightmat, lightpoint.x, lightpoint.y, lightpoint.z);
 		glUniformMatrix4fv(viewmatuniform, 1, GL_FALSE, &viewm[0][0]);
 		glUniformMatrix4fv(modlematuniform, 1, GL_FALSE, &modm[0][0]);
-		Joe::Engine::drawWindow(wind, entities, &linedraw, &shoot, colorID);
+		//Joe::Engine::drawWindow(wind, entities, &linedraw, &shoot, colorID);
+		Joe::Engine::drawWindow(wind, monkeyvertices, { texture1, texture1 }, { monkeyvertexbuffer, e2.vertexbuffer }, { monkeyuvbuffer, e2.uvbuffer }, { monkeynormalbuffer, e2.normalbuffer },
+			&linedraw, &shoot, colorID);
 		downray.point = control.getPosition();
 		downray.point.y -= 0.5;
 		if (mouserest > 0.1) {

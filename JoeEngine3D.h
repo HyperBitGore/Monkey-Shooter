@@ -372,6 +372,45 @@ namespace Joe {
 			glfwSwapBuffers(wind);
 			glfwPollEvents();
 		}
+		//need to keep buffer vectors even
+		static void drawWindow(GLFWwindow* wind, std::vector<glm::vec3>& vertices, std::vector<GLuint> textures, std::vector<GLuint> vertexbuffers, std::vector<GLuint> uvbuffers, std::vector<GLuint> normalbuffers, bool* drawline, Model* shoot, GLuint colorID) {
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+			for (int i = 0; i < vertexbuffers.size(); i++) {
+				glBindTexture(GL_TEXTURE_2D, textures[i]);
+				//vertex attrib
+				glEnableVertexAttribArray(0);
+				glBindBuffer(GL_ARRAY_BUFFER, vertexbuffers[i]);
+				glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+				//uv attrib
+				glEnableVertexAttribArray(1);
+				glBindBuffer(GL_ARRAY_BUFFER, uvbuffers[i]);
+				glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, (void*)0);
+				//normal attrib
+				glEnableVertexAttribArray(2);
+				glBindBuffer(GL_ARRAY_BUFFER, normalbuffers[i]);
+				glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+				glDrawArrays(GL_TRIANGLES, 0, vertices.size() * 3);
+			}
+			if (*drawline) {
+				glDisable(GL_DEPTH_TEST);
+				glDisable(GL_CULL_FACE);
+				glUseProgram(colorID);
+				glBindTexture(GL_TEXTURE_2D, shoot->texture);
+				glEnableVertexAttribArray(0);
+				glBindBuffer(GL_ARRAY_BUFFER, shoot->vertexbuffer);
+				glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+				//uv attrib
+				glEnableVertexAttribArray(1);
+				glBindBuffer(GL_ARRAY_BUFFER, shoot->uvbuffer);
+				glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, (void*)0);
+				glDrawArrays(GL_TRIANGLES, 0, 6);
+				glEnable(GL_DEPTH_TEST);
+				glEnable(GL_CULL_FACE);
+			}
+
+			glfwSwapBuffers(wind);
+			glfwPollEvents();
+		}
 		//creates a model struct and loads the obj data from file
 		static void addModel(const char* filepath, std::vector<Model>& models, GLuint texture) {
 			Model m;
