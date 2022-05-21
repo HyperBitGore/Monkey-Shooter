@@ -268,7 +268,7 @@ namespace Joe {
 			glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 			glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 			GLFWwindow* wind;
-			wind = glfwCreateWindow(w, h, "Learn OpenGL Intermediate", NULL, NULL);
+			wind = glfwCreateWindow(w, h, "Monke Shooter", NULL, NULL);
 			glfwMakeContextCurrent(wind);
 			if (glewInit() != GLEW_OK) {
 				std::cout << "Failed to init glew" << std::endl;

@@ -1,3 +1,4 @@
+#define CUTE_SOUND_IMPLEMENTATION
 #include "JoeEngine3D.h"
 #include <glm/gtx/vector_angle.hpp>
 #include <random>
@@ -73,14 +74,11 @@ void resizeMonkeyBuffers(std::vector<Joe::Entity*>& monkes ) {
 	glBufferData(GL_ARRAY_BUFFER, monkeynormals.size() * sizeof(glm::vec3), &monkeynormals[0], GL_STATIC_DRAW);
 }
 
-//fix monkes getting stuck(from collision)
-//shooting sound effect
-//rotate monkeys to look at player
+
 int main() {
 	GLFWwindow* wind = Joe::Engine::initGL(1024, 768);
 	GLuint lightID = Joe::Files::LoadShaders("vertexshader.glsl", "fragmentshader.glsl");
 	GLuint colorID = Joe::Files::LoadShaders("vertshader.glsl", "fragshader.glsl");
-
 	GLuint texture1 = Joe::Files::loadBMP_Texture("xoK5F.bmp");
 	GLuint texture2 = Joe::Files::loadBMP_Texture("shoot2.bmp");
 	std::vector<Joe::Model> models;
@@ -246,43 +244,39 @@ int main() {
 				angle = 0.1;
 			}
 			if (monkemiddle.x < middle.x) {
-				move.x = angle * delta * 1.5f;
+				move.x = angle * delta * 3.5f;
 				rx = angle * delta;
 			}
 			else if (monkemiddle.x > middle.x) {
-				move.x = -angle * delta * 1.5f;
+				move.x = -angle * delta * 3.5f;
 				rx = -angle * delta;
 			}
 			if (monkemiddle.z < middle.z) {
-				move.z = angle * delta * 1.5f;
+				move.z = angle * delta * 3.5f;
 				rz = angle * delta;
 			}
 			else if (monkemiddle.z > middle.z) {
-				move.z = -angle * delta * 1.5f;
+				move.z = -angle * delta * 3.5f;
 				rz = -angle * delta;
 			}
-			Joe::Engine::moveEntityVertices(monkes[i], move);
-			Joe::Engine::moveAABB(&monkes[i]->bounding, move);
+			bool movevert = true;
+	
 			Joe::Ray ra = { monkes[i]->bounding.min, glm::vec3(rx, 0, rz), glm::vec3(0) };
 			if (Joe::Engine::castRay(&ra, monkes, glm::vec3(1.5, 0, 1.5), monkes[i]).first) {
-				glm::vec3 moveneg(0);
-				moveneg.x = -move.x;
-				moveneg.z = -move.z;
-				Joe::Engine::moveEntityVertices(monkes[i], moveneg);
-				Joe::Engine::moveAABB(&monkes[i]->bounding, moveneg);
+				movevert = false;
 			}
 			for (auto& j : monkes) {
 				while (Joe::Engine::AABBcollision(monkes[i]->bounding, j->bounding) && monkes[i] != j) {
-					glm::vec3 moveneg(0);
-					moveneg.x = -move.x;
-					moveneg.z = -move.z;
-					Joe::Engine::moveEntityVertices(monkes[i], moveneg);
-					Joe::Engine::moveAABB(&monkes[i]->bounding, moveneg);
+					movevert = false;
+					break;
 				}
+			}
+			if (movevert) {
+				Joe::Engine::moveEntityVertices(monkes[i], move);
+				Joe::Engine::moveAABB(&monkes[i]->bounding, move);
 			}
 			if (Joe::Engine::AABBcollision(player, monkes[i]->bounding)) {
 				phealth -= 10;
-				std::cout << "colliding\n";
 			}
 			if (monkes[i]->health <= 0) {
 				deleteMonkey(monkes[i], entities);
@@ -336,6 +330,5 @@ int main() {
 		}
 		lastTime = currentTime;
 	}
-
 	return 0;
 }
