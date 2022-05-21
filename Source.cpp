@@ -1,5 +1,7 @@
 #include "JoeEngine3D.h"
 #include <glm/gtx/vector_angle.hpp>
+#include <random>
+#include <time.h>
 
 Joe::Entity spawnMonkey(glm::vec3 pos, Joe::Model *model, std::vector<Joe::Entity*>& monkes, std::vector<Joe::Entity*>& entities) {
 	Joe::Entity* e = new Joe::Entity;
@@ -71,8 +73,7 @@ void resizeMonkeyBuffers(std::vector<Joe::Entity*>& monkes ) {
 	glBufferData(GL_ARRAY_BUFFER, monkeynormals.size() * sizeof(glm::vec3), &monkeynormals[0], GL_STATIC_DRAW);
 }
 
-//monke spawning(spawn randomly)
-//monkes wont clip into each other
+//fix monkes getting stuck(from collision)
 //shooting sound effect
 //rotate monkeys to look at player
 int main() {
@@ -89,19 +90,12 @@ int main() {
 
 	std::vector<Joe::Entity*> monkes;
 	std::vector<Joe::Entity*> entities;
-	//Joe::Entity e1 = Joe::Engine::createEntity(&models[0]);
-	//e1.health = 100;
-	//entities.push_back(&e1);
 	spawnMonkey(glm::vec3(0.5, 0.5, 0.5), &models[0], monkes, entities);
 
-	
 	Joe::Entity e2 = Joe::Engine::createEntity(&models[1]);
 	entities.push_back(&e2);
 	std::vector<Joe::Entity*> walls;
 	walls.push_back(&e2);
-
-	
-	//monkes.push_back(&e1);
 
 	Joe::Model shoot;
 	//left triangle
@@ -138,7 +132,7 @@ int main() {
 	resetp = player;
 	//ray for downward collision of player
 	Joe::Ray downray = {glm::vec3(0, 0, 5), glm::vec3(0, 0.01, 0), glm::vec3(0,0,0)};
-	//variables needed for main loop
+	//variables needed for main rendering loop
 	Joe::Controls control;
 	GLuint lightmat = glGetUniformLocation(lightID, "LIGHT");
 	GLuint viewmatuniform = glGetUniformLocation(lightID, "V");
@@ -202,20 +196,18 @@ int main() {
 			shootcool += delta;
 		}
 		if (monkeyspawn > monkeycool) {
-			int rx = rand() % 2;
-			int rz = rand() % 2;
+			int rx = rand() % 100;
+			int rz = rand() % 2 + 1;
 			glm::vec3 sp(0);
-			if (rx < 1) {
+			if (rx > 50) {
 				sp.x = -8;
 			}
 			else {
 				sp.x = 8;
 			}
-			if (rz < 1) {
-				sp.z = -8;
-			}
-			else {
-				sp.z = 8;
+			sp.z = float(rand() % 9);
+			if (rz > 1) {
+				sp.z = -sp.z;
 			}
 			spawnMonkey(sp, &models[0], monkes, entities);
 			monkeyspawn = 0;
@@ -233,9 +225,8 @@ int main() {
 		glUniform3f(lightmat, lightpoint.x, lightpoint.y, lightpoint.z);
 		glUniformMatrix4fv(viewmatuniform, 1, GL_FALSE, &viewm[0][0]);
 		glUniformMatrix4fv(modlematuniform, 1, GL_FALSE, &modm[0][0]);
-		//Joe::Engine::drawWindow(wind, entities, &linedraw, &shoot, colorID);
-		Joe::Engine::drawWindow(wind, monkeyvertices, { texture1, texture1 }, { monkeyvertexbuffer, e2.vertexbuffer }, { monkeyuvbuffer, e2.uvbuffer }, { monkeynormalbuffer, e2.normalbuffer },
-			&linedraw, &shoot, colorID);
+		Joe::Engine::drawWindow(wind, monkeyvertices, { texture1, texture1 }, { monkeyvertexbuffer, e2.vertexbuffer }, { monkeyuvbuffer, e2.uvbuffer }, 
+		{ monkeynormalbuffer, e2.normalbuffer }, &linedraw, &shoot, colorID);
 		downray.point = control.getPosition();
 		downray.point.y -= 0.5;
 		if (mouserest > 0.1) {
@@ -243,7 +234,7 @@ int main() {
 			mouserest = 0;
 		}
 		acold.clear();
-		for (int i = 0; i < monkes.size(); i++) {
+		for (int i = 0; i < monkes.size();) {
 			glm::vec3 move(0, 0, 0);
 			glm::vec3 middle = player.min + (player.max - glm::abs(player.min));
 			glm::vec3 monkemiddle = monkes[i]->bounding.min + (monkes[i]->bounding.max - glm::abs(monkes[i]->bounding.min));
@@ -256,32 +247,49 @@ int main() {
 			}
 			if (monkemiddle.x < middle.x) {
 				move.x = angle * delta * 1.5f;
-				rx = angle;
+				rx = angle * delta;
 			}
 			else if (monkemiddle.x > middle.x) {
 				move.x = -angle * delta * 1.5f;
-				rx = -angle;
+				rx = -angle * delta;
 			}
 			if (monkemiddle.z < middle.z) {
 				move.z = angle * delta * 1.5f;
-				rz = angle;
+				rz = angle * delta;
 			}
 			else if (monkemiddle.z > middle.z) {
 				move.z = -angle * delta * 1.5f;
-				rz = -angle;
+				rz = -angle * delta;
 			}
 			Joe::Engine::moveEntityVertices(monkes[i], move);
 			Joe::Engine::moveAABB(&monkes[i]->bounding, move);
 			Joe::Ray ra = { monkes[i]->bounding.min, glm::vec3(rx, 0, rz), glm::vec3(0) };
-			if (Joe::Engine::castRay(&ra, monkes, glm::vec3(2.0, 0, 2.0), monkes[i]).first) {
-				move.x = -move.x;
-				move.z = -move.z;
-				Joe::Engine::moveEntityVertices(monkes[i], move);
-				Joe::Engine::moveAABB(&monkes[i]->bounding, move);
+			if (Joe::Engine::castRay(&ra, monkes, glm::vec3(1.5, 0, 1.5), monkes[i]).first) {
+				glm::vec3 moveneg(0);
+				moveneg.x = -move.x;
+				moveneg.z = -move.z;
+				Joe::Engine::moveEntityVertices(monkes[i], moveneg);
+				Joe::Engine::moveAABB(&monkes[i]->bounding, moveneg);
+			}
+			for (auto& j : monkes) {
+				while (Joe::Engine::AABBcollision(monkes[i]->bounding, j->bounding) && monkes[i] != j) {
+					glm::vec3 moveneg(0);
+					moveneg.x = -move.x;
+					moveneg.z = -move.z;
+					Joe::Engine::moveEntityVertices(monkes[i], moveneg);
+					Joe::Engine::moveAABB(&monkes[i]->bounding, moveneg);
+				}
 			}
 			if (Joe::Engine::AABBcollision(player, monkes[i]->bounding)) {
 				phealth -= 10;
 				std::cout << "colliding\n";
+			}
+			if (monkes[i]->health <= 0) {
+				deleteMonkey(monkes[i], entities);
+				monkes.erase(monkes.begin() + i);
+			}
+			else {
+				i++;
 			}
 		}
 		Joe::Ray temp = downray;
@@ -323,15 +331,8 @@ int main() {
 				monkes.erase(monkes.begin() + i);
 			}
 			spawnMonkey(glm::vec3(0.5, 0.5, 0.5), &models[0], monkes, entities);
-		}
-		for (int i = 0; i < monkes.size();) {
-			if (monkes[i]->health <= 0) {
-				deleteMonkey(monkes[i], entities);
-				monkes.erase(monkes.begin() + i);
-			}
-			else {
-				i++;
-			}
+			monkeyspawn = 0;
+			monkeycool = 5.0f;
 		}
 		lastTime = currentTime;
 	}
